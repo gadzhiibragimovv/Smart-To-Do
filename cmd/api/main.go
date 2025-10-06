@@ -33,6 +33,8 @@ func TaskHandler(w http.ResponseWriter, r *http.Request) {
 		GetTaskHandler(w, r)
 	} else if r.Method == http.MethodPost {
 		PostTaskHandler(w, r)
+	} else if r.Method == http.MethodDelete {
+		DeleteTaskHandler(w, r)
 	} else {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -49,6 +51,26 @@ func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 	Tasks = append(Tasks, task)
 	w.Header().Set("Content-Type", "application/json") //Говорит, что ответ будет в формате json
 	json.NewEncoder(w).Encode(task)                    //Из Go в json
+}
+
+func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+	varsDelete := mux.Vars(r)
+	idStrDelete := varsDelete["id"]
+
+	id, err := strconv.Atoi(idStrDelete)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	for i, task := range Tasks {
+		if task.ID == id {
+			Tasks = append(Tasks[:i], Tasks[i+1:]...)
+			return
+		}
+	}
+	w.Header().Set("Content-Type", "application/json") //Говорит, что ответ будет в формате json
+	json.NewEncoder(w).Encode(Tasks)                   //Из Go в json
 }
 
 func GetTaskById(w http.ResponseWriter, r *http.Request) {
