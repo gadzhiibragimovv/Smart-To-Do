@@ -28,18 +28,6 @@ var Tasks = []Task{
 	{ID: 4, UserID: 4, Title: "Задача 4", IsDone: true, Priority: 3, Category: "Дом"},
 }
 
-func TaskHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		GetTaskHandler(w, r)
-	} else if r.Method == http.MethodPost {
-		PostTaskHandler(w, r)
-	} else if r.Method == http.MethodDelete {
-		DeleteTaskHandler(w, r)
-	} else {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
 func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json") //Говорит, что ответ будет в формате json
 	json.NewEncoder(w).Encode(Tasks)                   //Из Go в json
@@ -47,7 +35,11 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var task Task
-	json.NewDecoder(r.Body).Decode(&task) //Из json в Go
+	err := json.NewDecoder(r.Body).Decode(&task) //Из json в Go
+	if err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
 	Tasks = append(Tasks, task)
 	w.Header().Set("Content-Type", "application/json") //Говорит, что ответ будет в формате json
 	json.NewEncoder(w).Encode(task)                    //Из Go в json
@@ -66,11 +58,12 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	for i, task := range Tasks {
 		if task.ID == id {
 			Tasks = append(Tasks[:i], Tasks[i+1:]...)
+			w.Header().Set("Content-Type", "application/json") //Говорит, что ответ будет в формате json
+			json.NewEncoder(w).Encode(Tasks)                   //Из Go в json
 			return
 		}
 	}
-	w.Header().Set("Content-Type", "application/json") //Говорит, что ответ будет в формате json
-	json.NewEncoder(w).Encode(Tasks)                   //Из Go в json
+	http.Error(w, "Not found", http.StatusNotFound)
 }
 
 func GetTaskById(w http.ResponseWriter, r *http.Request) {
@@ -88,15 +81,14 @@ func GetTaskById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var task Task
-	for _, t := range Tasks {
-		if t.ID == id {
-			task = t
+	for _, task := range Tasks {
+		if task.ID == id {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(task)
 			return
 		}
 	}
-	w.Header().Set("Content-Type", "application/json") //Говорит, что ответ будет в формате json
-	json.NewEncoder(w).Encode(task)                    //Из Go в json
+	http.Error(w, "Not found", http.StatusNotFound)
 }
 
 func main() {
@@ -107,7 +99,13 @@ func main() {
 
 	r := mux.NewRouter() //Создание роутера
 
-	http.HandleFunc("\tasks", TaskHandler)
+	r.HandleFunc("/tasks", GetTaskHandler).Methods("Get")
+	r.HandleFunc("/tasks", PostTaskHandler).Methods("Post")
+	r.HandleFunc("/tasks/{id}", GetTaskById).Methods("Get")
+	r.HandleFunc("/tasks/{id}", DeleteTaskHandler).Methods("Delete")
 	fmt.Println("Метод запущен на порту 9090")
-	http.ListenAndServe("9090", r)
+	err = http.ListenAndServe(":9090", r)
+	if err != nil {
+		log.Fatal("Server error:", err)
+	}
 }
