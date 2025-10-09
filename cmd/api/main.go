@@ -28,9 +28,44 @@ var Tasks = []Task{
 	{ID: 4, UserID: 4, Title: "Задача 4", IsDone: true, Priority: 3, Category: "Дом"},
 }
 
+type User struct {
+	Id   int    `json:"id"`
+	Name string `json:"users"`
+}
+
+var Users = []User{
+	{Id: 1, Name: "Пользователь 1"},
+	{Id: 2, Name: "Пользователь 2"},
+}
+
 func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json") //Говорит, что ответ будет в формате json
 	json.NewEncoder(w).Encode(Tasks)                   //Из Go в json
+}
+
+func GetTaskById(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	if idStr == "" {
+		http.Error(w, "error missing id in path", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "error invalid id", http.StatusBadRequest)
+		return
+	}
+
+	for _, task := range Tasks {
+		if task.ID == id {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(task)
+			return
+		}
+	}
+	http.Error(w, "Not found", http.StatusNotFound)
 }
 
 func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
@@ -66,12 +101,17 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Not found", http.StatusNotFound)
 }
 
-func GetTaskById(w http.ResponseWriter, r *http.Request) {
+func GetUserHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(Users)
+}
+
+func GetUserById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 
 	if idStr == "" {
-		http.Error(w, "error missing id in path", http.StatusBadRequest)
+		http.Error(w, "error missing in path", http.StatusBadRequest)
 		return
 	}
 
@@ -81,10 +121,43 @@ func GetTaskById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, task := range Tasks {
-		if task.ID == id {
+	for _, user := range Users {
+		if user.Id == id {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(task)
+			json.NewEncoder(w).Encode(user)
+			return
+		}
+	}
+	http.Error(w, "Not found", http.StatusNotFound)
+}
+
+func PostUserHandler(w http.ResponseWriter, r *http.Request) {
+	var user User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	Users = append(Users, user)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
+	varsDelete := mux.Vars(r)
+	idStrDelete := varsDelete["id"]
+
+	id, err := strconv.Atoi(idStrDelete)
+	if err != nil {
+		http.Error(w, "error invalid id", http.StatusBadRequest)
+		return
+	}
+
+	for i, user := range Users {
+		if user.Id == id {
+			Users = append(Users[:i], Users[i+1:]...)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(Users)
 			return
 		}
 	}
@@ -103,6 +176,12 @@ func main() {
 	r.HandleFunc("/tasks", PostTaskHandler).Methods("Post")
 	r.HandleFunc("/tasks/{id}", GetTaskById).Methods("Get")
 	r.HandleFunc("/tasks/{id}", DeleteTaskHandler).Methods("Delete")
+
+	r.HandleFunc("/users", GetUserHandler).Methods("Get")
+	r.HandleFunc("/users", PostUserHandler).Methods("Post")
+	r.HandleFunc("/users/{id}", GetUserById).Methods("Get")
+	r.HandleFunc("/users/{id}", DeleteUserHandler).Methods("Delete")
+
 	fmt.Println("Метод запущен на порту 9090")
 	err = http.ListenAndServe(":9090", r)
 	if err != nil {
