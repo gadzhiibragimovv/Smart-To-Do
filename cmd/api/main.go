@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 )
 
@@ -15,10 +18,9 @@ type Task struct {
 	ID       int    `json:"id"`       //ID - Уникальный индефикатор
 	UserID   int    `json:"userid"`   //UserID - Связь с пользователем, пользователь может видеть/изменять свои данные
 	Title    string `json:"title"`    //Title - заголовок задачи
-	IsDone   bool   `json:"isdone"`   //IsDone - Выполнение задачи(true-выполнено/false-ложно)
+	IsDone   bool   `json:"isdone"`   //IsDone - Выполнение задачи(true-выполнено/false-не выполнено)
 	Priority int    `json:"priority"` //Priority - Приоритет - (0-неуказан,1-низкий,2-средний,3-высокий)
 	Category string `json:"category"` //Category - Категории(дом,работа)
-
 }
 
 var Tasks = []Task{
@@ -32,6 +34,8 @@ type User struct {
 	Id   int    `json:"id"`
 	Name string `json:"users"`
 }
+
+var db *pgx.Conn
 
 var Users = []User{
 	{Id: 1, Name: "Пользователь 1"},
@@ -121,6 +125,13 @@ func GetUserById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var user User
+	err = db.QueryRow(
+		context.Background(),
+		"SELECT id, name FROM users WHERE id = $1",
+		id,
+	).Scan(&user.Id, &user.Name)
+
 	for _, user := range Users {
 		if user.Id == id {
 			w.Header().Set("Content-Type", "application/json")
@@ -169,6 +180,21 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+
+	//Подключение к БД
+	db, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v\n", err)
+	}
+	defer db.Close(context.Background())
+
+	var insertedID int
+	err = db.QueryRow(
+		context.Background(),
+		`INSERT INTO users (name) VALUES ($1) 
+         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name 
+         RETURNING id`,
+	).Scan(&insertedID)
 
 	r := mux.NewRouter() //Создание роутера
 
