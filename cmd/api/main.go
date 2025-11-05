@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 )
 
@@ -15,10 +18,9 @@ type Task struct {
 	ID       int    `json:"id"`       //ID - Уникальный индефикатор
 	UserID   int    `json:"userid"`   //UserID - Связь с пользователем, пользователь может видеть/изменять свои данные
 	Title    string `json:"title"`    //Title - заголовок задачи
-	IsDone   bool   `json:"isdone"`   //IsDone - Выполнение задачи(true-выполнено/false-ложно)
+	IsDone   bool   `json:"isdone"`   //IsDone - Выполнение задачи(true-выполнено/false-не выполнено)
 	Priority int    `json:"priority"` //Priority - Приоритет - (0-неуказан,1-низкий,2-средний,3-высокий)
 	Category string `json:"category"` //Category - Категории(дом,работа)
-
 }
 
 var Tasks = []Task{
@@ -32,6 +34,8 @@ type User struct {
 	Id   int    `json:"id"`
 	Name string `json:"users"`
 }
+
+var db *pgx.Conn
 
 var Users = []User{
 	{Id: 1, Name: "Пользователь 1"},
@@ -121,14 +125,20 @@ func GetUserById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, user := range Users {
-		if user.Id == id {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(user)
-			return
-		}
+	var user User
+	err = db.QueryRow(
+		context.Background(),
+		"SELECT id, name FROM users WHERE id = $1",
+		id,
+	).Scan(&user.Id, &user.Name)
+
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
 	}
-	http.Error(w, "Not found", http.StatusNotFound)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
 }
 
 func PostUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -138,7 +148,17 @@ func PostUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	Users = append(Users, user)
+
+	err = db.QueryRow(
+		context.Background(),
+		"INSERT INTO users (name) VALUES ($1) RETURNING id",
+		user.Name,
+	).Scan(&user.Id)
+	if err != nil {
+		http.Error(w, "Failed to insert user", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
@@ -153,15 +173,14 @@ func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for i, user := range Users {
-		if user.Id == id {
-			Users = append(Users[:i], Users[i+1:]...)
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(Users)
-			return
-		}
+	_, err = db.Exec(context.Background(), "DELETE FROM users WHERE id = $1", id)
+	if err != nil {
+		http.Error(w, "Failed from delete user:", http.StatusInternalServerError)
+		return
 	}
-	http.Error(w, "Not found", http.StatusNotFound)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(id)
 }
 
 func main() {
@@ -170,17 +189,24 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	//Подключение к БД
+	db, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v\n", err)
+	}
+	defer db.Close(context.Background())
+
 	r := mux.NewRouter() //Создание роутера
 
-	r.HandleFunc("/tasks", GetTaskHandler).Methods("Get")
-	r.HandleFunc("/tasks", PostTaskHandler).Methods("Post")
-	r.HandleFunc("/tasks/{id}", GetTaskById).Methods("Get")
-	r.HandleFunc("/tasks/{id}", DeleteTaskHandler).Methods("Delete")
+	r.HandleFunc("/tasks", GetTaskHandler).Methods("GET")
+	r.HandleFunc("/tasks", PostTaskHandler).Methods("POST")
+	r.HandleFunc("/tasks/{id}", GetTaskById).Methods("GET")
+	r.HandleFunc("/tasks/{id}", DeleteTaskHandler).Methods("DELETE")
 
-	r.HandleFunc("/users", GetUserHandler).Methods("Get")
-	r.HandleFunc("/users", PostUserHandler).Methods("Post")
-	r.HandleFunc("/users/{id}", GetUserById).Methods("Get")
-	r.HandleFunc("/users/{id}", DeleteUserHandler).Methods("Delete")
+	r.HandleFunc("/users", GetUserHandler).Methods("GET")
+	r.HandleFunc("/users", PostUserHandler).Methods("POST")
+	r.HandleFunc("/users/{id}", GetUserById).Methods("GET")
+	r.HandleFunc("/users/{id}", DeleteUserHandler).Methods("DELETE")
 
 	fmt.Println("Метод запущен на порту 9090")
 	err = http.ListenAndServe(":9090", r)
