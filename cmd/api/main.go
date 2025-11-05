@@ -132,14 +132,13 @@ func GetUserById(w http.ResponseWriter, r *http.Request) {
 		id,
 	).Scan(&user.Id, &user.Name)
 
-	for _, user := range Users {
-		if user.Id == id {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(user)
-			return
-		}
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
 	}
-	http.Error(w, "Not found", http.StatusNotFound)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
 }
 
 func PostUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +148,17 @@ func PostUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	Users = append(Users, user)
+
+	err = db.QueryRow(
+		context.Background(),
+		"INSERT INTO users (name) VALUES ($1) RETURNING id",
+		user.Name,
+	).Scan(&user.Id)
+	if err != nil {
+		http.Error(w, "Failed to insert user", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
@@ -164,15 +173,14 @@ func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for i, user := range Users {
-		if user.Id == id {
-			Users = append(Users[:i], Users[i+1:]...)
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(Users)
-			return
-		}
+	_, err = db.Exec(context.Background(), "DELETE FROM users WHERE id = $1", id)
+	if err != nil {
+		http.Error(w, "Failed from delete user:", http.StatusInternalServerError)
+		return
 	}
-	http.Error(w, "Not found", http.StatusNotFound)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(id)
 }
 
 func main() {
@@ -188,25 +196,17 @@ func main() {
 	}
 	defer db.Close(context.Background())
 
-	var insertedID int
-	err = db.QueryRow(
-		context.Background(),
-		`INSERT INTO users (name) VALUES ($1) 
-         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name 
-         RETURNING id`,
-	).Scan(&insertedID)
-
 	r := mux.NewRouter() //Создание роутера
 
-	r.HandleFunc("/tasks", GetTaskHandler).Methods("Get")
-	r.HandleFunc("/tasks", PostTaskHandler).Methods("Post")
-	r.HandleFunc("/tasks/{id}", GetTaskById).Methods("Get")
-	r.HandleFunc("/tasks/{id}", DeleteTaskHandler).Methods("Delete")
+	r.HandleFunc("/tasks", GetTaskHandler).Methods("GET")
+	r.HandleFunc("/tasks", PostTaskHandler).Methods("POST")
+	r.HandleFunc("/tasks/{id}", GetTaskById).Methods("GET")
+	r.HandleFunc("/tasks/{id}", DeleteTaskHandler).Methods("DELETE")
 
-	r.HandleFunc("/users", GetUserHandler).Methods("Get")
-	r.HandleFunc("/users", PostUserHandler).Methods("Post")
-	r.HandleFunc("/users/{id}", GetUserById).Methods("Get")
-	r.HandleFunc("/users/{id}", DeleteUserHandler).Methods("Delete")
+	r.HandleFunc("/users", GetUserHandler).Methods("GET")
+	r.HandleFunc("/users", PostUserHandler).Methods("POST")
+	r.HandleFunc("/users/{id}", GetUserById).Methods("GET")
+	r.HandleFunc("/users/{id}", DeleteUserHandler).Methods("DELETE")
 
 	fmt.Println("Метод запущен на порту 9090")
 	err = http.ListenAndServe(":9090", r)
