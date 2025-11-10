@@ -102,15 +102,26 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
-	var users []User
+	users := []User{}
 
-	err := db.QueryRow(
-		context.Background(),
-		"SELECT id,name,email FROM users",
-	).Scan(&users)
-
+	rows, err := db.Query(context.Background(), "SELECT id, name, email FROM users")
 	if err != nil {
-		http.Error(w, "Users not found", http.StatusNotFound)
+		http.Error(w, "Failed to query users: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(&user.Id, &user.Name, &user.Email); err != nil {
+			http.Error(w, "Error scanning user: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		users = append(users, user)
+	}
+
+	if err = rows.Err(); err != nil {
+		http.Error(w, "Error reading rows: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
