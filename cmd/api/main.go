@@ -31,16 +31,12 @@ var Tasks = []Task{
 }
 
 type User struct {
-	Id   int    `json:"id"`
-	Name string `json:"users"`
+	Id    int    `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
 var db *pgx.Conn
-
-var Users = []User{
-	{Id: 1, Name: "Пользователь 1"},
-	{Id: 2, Name: "Пользователь 2"},
-}
 
 func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json") //Говорит, что ответ будет в формате json
@@ -106,8 +102,20 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
+	var users []User
+
+	err := db.QueryRow(
+		context.Background(),
+		"SELECT id,name,email FROM users",
+	).Scan(&users)
+
+	if err != nil {
+		http.Error(w, "Users not found", http.StatusNotFound)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(Users)
+	json.NewEncoder(w).Encode(users)
 }
 
 func GetUserById(w http.ResponseWriter, r *http.Request) {
@@ -151,9 +159,10 @@ func PostUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = db.QueryRow(
 		context.Background(),
-		"INSERT INTO users (name) VALUES ($1) RETURNING id",
-		user.Name,
+		"INSERT INTO users (name, email) VALUES ($1,$2) RETURNING id",
+		user.Name, user.Email,
 	).Scan(&user.Id)
+
 	if err != nil {
 		http.Error(w, "Failed to insert user", http.StatusInternalServerError)
 		return
@@ -190,7 +199,7 @@ func main() {
 	}
 
 	//Подключение к БД
-	db, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	db, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
