@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 )
 
@@ -15,10 +18,9 @@ type Task struct {
 	ID       int    `json:"id"`       //ID - Уникальный индефикатор
 	UserID   int    `json:"userid"`   //UserID - Связь с пользователем, пользователь может видеть/изменять свои данные
 	Title    string `json:"title"`    //Title - заголовок задачи
-	IsDone   bool   `json:"isdone"`   //IsDone - Выполнение задачи(true-выполнено/false-ложно)
+	IsDone   bool   `json:"isdone"`   //IsDone - Выполнение задачи(true-выполнено/false-не выполнено)
 	Priority int    `json:"priority"` //Priority - Приоритет - (0-неуказан,1-низкий,2-средний,3-высокий)
 	Category string `json:"category"` //Category - Категории(дом,работа)
-
 }
 
 var Tasks = []Task{
@@ -28,9 +30,42 @@ var Tasks = []Task{
 	{ID: 4, UserID: 4, Title: "Задача 4", IsDone: true, Priority: 3, Category: "Дом"},
 }
 
+type User struct {
+	Id    int    `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+var db *pgx.Conn
+
 func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json") //Говорит, что ответ будет в формате json
 	json.NewEncoder(w).Encode(Tasks)                   //Из Go в json
+}
+
+func GetTaskById(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	if idStr == "" {
+		http.Error(w, "error missing id in path", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "error invalid id", http.StatusBadRequest)
+		return
+	}
+
+	for _, task := range Tasks {
+		if task.ID == id {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(task)
+			return
+		}
+	}
+	http.Error(w, "Not found", http.StatusNotFound)
 }
 
 func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
@@ -66,12 +101,40 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Not found", http.StatusNotFound)
 }
 
-func GetTaskById(w http.ResponseWriter, r *http.Request) {
+func GetUserHandler(w http.ResponseWriter, r *http.Request) {
+	users := []User{}
+
+	rows, err := db.Query(context.Background(), "SELECT id, name, email FROM users")
+	if err != nil {
+		http.Error(w, "Failed to query users: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(&user.Id, &user.Name, &user.Email); err != nil {
+			http.Error(w, "Error scanning user: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		users = append(users, user)
+	}
+
+	if err = rows.Err(); err != nil {
+		http.Error(w, "Error reading rows: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(users)
+}
+
+func GetUserById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 
 	if idStr == "" {
-		http.Error(w, "error missing id in path", http.StatusBadRequest)
+		http.Error(w, "error missing in path", http.StatusBadRequest)
 		return
 	}
 
@@ -81,14 +144,63 @@ func GetTaskById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, task := range Tasks {
-		if task.ID == id {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(task)
-			return
-		}
+	var user User
+	err = db.QueryRow(
+		context.Background(),
+		"SELECT id, name FROM users WHERE id = $1",
+		id,
+	).Scan(&user.Id, &user.Name)
+
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
 	}
-	http.Error(w, "Not found", http.StatusNotFound)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func PostUserHandler(w http.ResponseWriter, r *http.Request) {
+	var user User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	err = db.QueryRow(
+		context.Background(),
+		"INSERT INTO users (name, email) VALUES ($1,$2) RETURNING id",
+		user.Name, user.Email,
+	).Scan(&user.Id)
+
+	if err != nil {
+		http.Error(w, "Failed to insert user", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
+	varsDelete := mux.Vars(r)
+	idStrDelete := varsDelete["id"]
+
+	id, err := strconv.Atoi(idStrDelete)
+	if err != nil {
+		http.Error(w, "error invalid id", http.StatusBadRequest)
+		return
+	}
+
+	_, err = db.Exec(context.Background(), "DELETE FROM users WHERE id = $1", id)
+	if err != nil {
+		http.Error(w, "Failed from delete user:", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(id)
 }
 
 func main() {
@@ -97,12 +209,25 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	//Подключение к БД
+	db, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v\n", err)
+	}
+	defer db.Close(context.Background())
+
 	r := mux.NewRouter() //Создание роутера
 
-	r.HandleFunc("/tasks", GetTaskHandler).Methods("Get")
-	r.HandleFunc("/tasks", PostTaskHandler).Methods("Post")
-	r.HandleFunc("/tasks/{id}", GetTaskById).Methods("Get")
-	r.HandleFunc("/tasks/{id}", DeleteTaskHandler).Methods("Delete")
+	r.HandleFunc("/tasks", GetTaskHandler).Methods("GET")
+	r.HandleFunc("/tasks", PostTaskHandler).Methods("POST")
+	r.HandleFunc("/tasks/{id}", GetTaskById).Methods("GET")
+	r.HandleFunc("/tasks/{id}", DeleteTaskHandler).Methods("DELETE")
+
+	r.HandleFunc("/users", GetUserHandler).Methods("GET")
+	r.HandleFunc("/users", PostUserHandler).Methods("POST")
+	r.HandleFunc("/users/{id}", GetUserById).Methods("GET")
+	r.HandleFunc("/users/{id}", DeleteUserHandler).Methods("DELETE")
+
 	fmt.Println("Метод запущен на порту 9090")
 	err = http.ListenAndServe(":9090", r)
 	if err != nil {
