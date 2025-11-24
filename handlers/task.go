@@ -5,18 +5,18 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5"
 )
 
 type Task struct {
-	ID       int    `json:"id"`       //ID - Уникальный индефикатор
-	UserID   int    `json:"userid"`   //UserID - Связь с пользователем, пользователь может видеть/изменять свои данные
-	Title    string `json:"title"`    //Title - заголовок задачи
-	IsDone   bool   `json:"isdone"`   //IsDone - Выполнение задачи(true-выполнено/false-не выполнено)
-	Priority int    `json:"priority"` //Priority - Приоритет - (0-неуказан,1-низкий,2-средний,3-высокий)
-	Category string `json:"category"` //Category - Категории(дом,работа)
+	ID          int        `json:"id"`          //ID - Уникальный индефикатор
+	Title       string     `json:"title"`       //Title - Заголовок задачи
+	Description string     `json:"description"` //Description - Краткое описание задачи
+	CreatedAT   time.Time  `json:"created_at"`  //CreatedAT - Дата и время создания задачи
+	UpdatedAT   *time.Time `json:"updated_at"`  //UpdatedAT - Дата и время последнего обновления задачи
 }
 
 var db *pgx.Conn
@@ -28,7 +28,7 @@ func SetDB(database *pgx.Conn) {
 func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	tasks := []Task{}
 
-	rows, err := db.Query(context.Background(), "SELECT id, userid, title, isdone, priority, category FROM tasks")
+	rows, err := db.Query(context.Background(), "SELECT id, title, description, created_at, updated_at FROM tasks")
 	if err != nil {
 		http.Error(w, "Failed to query tasks: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -37,7 +37,7 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var task Task
-		if err := rows.Scan(&task.ID, &task.UserID, &task.Title, &task.IsDone, &task.Priority, &task.Category); err != nil {
+		if err := rows.Scan(&task.ID, &task.Title, &task.Description, &task.CreatedAT, &task.UpdatedAT); err != nil {
 			http.Error(w, "Error scanning user: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -71,9 +71,9 @@ func GetTaskById(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	err = db.QueryRow(
 		context.Background(),
-		"SELECT id, userid, title, isdone, priority, category FROM tasks WHERE id = $1",
+		"SELECT id, title, description, created_at, updated_at FROM tasks WHERE id = $1",
 		id,
-	).Scan(&task.ID, &task.UserID, &task.Title, &task.IsDone, &task.Priority, &task.Category)
+	).Scan(&task.ID, &task.Title, &task.Description, &task.CreatedAT, &task.UpdatedAT)
 
 	if err != nil {
 		http.Error(w, "Task not found", http.StatusNotFound)
@@ -92,10 +92,17 @@ func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now()
+	task.CreatedAT = now
+	task.UpdatedAT = &now
+
 	err = db.QueryRow(
 		context.Background(),
-		"INSERT INTO tasks (title, category) VALUES ($1,$2) RETURNING id",
-		task.Title, task.Category,
+		"INSERT INTO tasks (title, description, created_at, updated_at) VALUES ($1,$2,$3,$4) RETURNING id",
+		task.Title,
+		task.Description,
+		task.CreatedAT,
+		task.UpdatedAT,
 	).Scan(&task.ID)
 
 	if err != nil {
