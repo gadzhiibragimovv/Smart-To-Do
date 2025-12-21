@@ -34,11 +34,13 @@ func main() {
 	r.HandleFunc("/tasks", handlers.PostTaskHandler).Methods("POST")
 	r.HandleFunc("/tasks/{id}", handlers.GetTaskById).Methods("GET")
 	r.HandleFunc("/tasks/{id}", handlers.DeleteTaskHandler).Methods("DELETE")
+	r.HandleFunc("/tasks/{id}", handlers.PutTaskHandler).Methods("PUT")
 
 	r.HandleFunc("/users", handlers.GetUserHandler).Methods("GET")
 	r.HandleFunc("/users", handlers.PostUserHandler).Methods("POST")
 	r.HandleFunc("/users/{id}", handlers.GetUserById).Methods("GET")
 	r.HandleFunc("/users/{id}", handlers.DeleteUserHandler).Methods("DELETE")
+	r.HandleFunc("/users/{id}", handlers.PutUserHandler).Methods("PUT")
 
 	fmt.Println("Метод запущен на порту 9090")
 	err = http.ListenAndServe(":9090", r)
