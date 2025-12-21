@@ -7,6 +7,8 @@ import (
 )
 
 func PostUserHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
 	var user User
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {

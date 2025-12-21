@@ -13,6 +13,8 @@ import (
 )
 
 func PutTaskHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
 	varsUpdate := mux.Vars(r)
 	idStrUpdate := varsUpdate["id"]
 

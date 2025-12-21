@@ -8,6 +8,8 @@ import (
 )
 
 func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
 	var task Task
 	err := json.NewDecoder(r.Body).Decode(&task) //Из json в Go
 	if err != nil {
