@@ -9,6 +9,18 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// GetUserById возвращает пользователя по ID
+// @Summary Получить пользователя
+// @Description Возвращает пользователя по его идентификатору
+// @Tags users
+// @Produce json
+// @Param id path int true "ID пользователя"
+// @Success 200 {object} User
+// @Failure 400 {string} string "Неверный ID"
+// @Failure 404 {string} string "Пользователь не найдена"
+// @Failure 500 {string} string "Ошибка сервера"
+// @Router /users/{id} [get]
+
 func GetUserById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]

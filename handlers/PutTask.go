@@ -12,6 +12,20 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// PutTaskHandler обновляет задачу
+// @Summary Обновить задачу
+// @Description Обновляет задачу по идентификатору
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path int true "ID задачи"
+// @Param task body Task true "Данные задачи"
+// @Success 200 {object} Task
+// @Failure 400 {string} string "Неверный JSON"
+// @Failure 404 {string} string "Задача не найдена"
+// @Failure 500 {string} string "Ошибка сервера"
+// @Router /tasks/{id} [put]
+
 func PutTaskHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 

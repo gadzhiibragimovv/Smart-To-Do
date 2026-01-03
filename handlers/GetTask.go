@@ -6,6 +6,15 @@ import (
 	"net/http"
 )
 
+// GetTaskHandler возвращает список задач
+// @Summary Получить список задач
+// @Description Возвращает все задачи
+// @Tags tasks
+// @Produce json
+// @Success 200 {array} Task
+// @Failure 500 {string} string "Ошибка сервера"
+// @Router /tasks [get]
+
 func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	tasks := []Task{}
 

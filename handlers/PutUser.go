@@ -11,6 +11,20 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// PutUserHandler обновляет пользователя
+// @Summary Обновить пользователя
+// @Description Обновляет пользователя по его идентификатору
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "ID пользователя"
+// @Param task body User true "Данные пользователей"
+// @Success 200 {object} User
+// @Failure 400 {string} string "Неверный JSON или ID"
+// @Failure 404 {string} string "Пользователь не найден"
+// @Failure 500 {string} string "Ошибка сервера"
+// @Router /users/{id} [put]
+
 func PutUserHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 

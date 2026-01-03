@@ -6,6 +6,18 @@ import (
 	"net/http"
 )
 
+// PostTaskHandler создает нового пользователя
+// @Summary Создать пользователя
+// @Description Создает нового пользователя
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param task body User true "Данные пользователя"
+// @Success 201 {object} User
+// @Failure 400 {string} string "Неверный JSON"
+// @Failure 500 {string} string "Ошибка сервера"
+// @Router /users [post]
+
 func PostUserHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 

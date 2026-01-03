@@ -6,11 +6,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	_ "smart-todo/docs"
 	"smart-todo/handlers"
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func main() {
@@ -41,6 +43,8 @@ func main() {
 	r.HandleFunc("/users/{id}", handlers.GetUserById).Methods("GET")
 	r.HandleFunc("/users/{id}", handlers.DeleteUserHandler).Methods("DELETE")
 	r.HandleFunc("/users/{id}", handlers.PutUserHandler).Methods("PUT")
+
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	fmt.Println("Метод запущен на порту 9090")
 	err = http.ListenAndServe(":9090", r)

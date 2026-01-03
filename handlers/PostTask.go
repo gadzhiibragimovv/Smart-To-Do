@@ -7,6 +7,18 @@ import (
 	"time"
 )
 
+// PostTaskHandler создает новую задачу
+// @Summary Создать задачу
+// @Description Создает новую задачу
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param task body Task true "Данные задачи"
+// @Success 201 {object} Task
+// @Failure 400 {string} string "Неверный JSON"
+// @Failure 500 {string} string "Ошибка сервера"
+// @Router /tasks [post]
+
 func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 

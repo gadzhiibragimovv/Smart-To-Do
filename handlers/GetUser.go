@@ -6,6 +6,15 @@ import (
 	"net/http"
 )
 
+// GetUserHandler возвращает список пользователей
+// @Summary Получить список пользователей
+// @Description Возвращает всех пользователей
+// @Tags users
+// @Produce json
+// @Success 200 {array} User
+// @Failure 500 {string} string "Ошибка сервера"
+// @Router /users [get]
+
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	users := []User{}
 
