@@ -20,7 +20,6 @@ import (
 // @Failure 404 {string} string "Пользователь не найдена"
 // @Failure 500 {string} string "Ошибка сервера"
 // @Router /users/{id} [get]
-
 func GetUserById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]

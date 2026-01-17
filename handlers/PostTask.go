@@ -18,7 +18,6 @@ import (
 // @Failure 400 {string} string "Неверный JSON"
 // @Failure 500 {string} string "Ошибка сервера"
 // @Router /tasks [post]
-
 func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 

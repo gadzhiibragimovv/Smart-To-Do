@@ -20,7 +20,6 @@ import (
 // @Failure 404 {string} string "Задача не найдена"
 // @Failure 500 {string} string "Ошибка сервера"
 // @Router /tasks/{id} [get]
-
 func GetTaskById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]

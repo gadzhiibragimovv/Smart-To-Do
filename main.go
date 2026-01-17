@@ -15,6 +15,11 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// @title Smart To-Do API
+// @version 1.0
+// @description API для управления задачами и пользователями
+// @host localhost:9090
+// @BasePath /
 func main() {
 	err := godotenv.Load() //загрузка .env файла
 	if err != nil {
