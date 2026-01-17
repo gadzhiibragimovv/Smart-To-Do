@@ -19,7 +19,6 @@ import (
 // @Failure 400 {string} string "Неверный ID"
 // @Failure 500 {string} string "Ошибка сервера"
 // @Router /tasks/{id} [delete]
-
 func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	varsDelete := mux.Vars(r)
 	idStrDelete := varsDelete["id"]

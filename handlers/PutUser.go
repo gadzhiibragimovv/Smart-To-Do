@@ -24,7 +24,6 @@ import (
 // @Failure 404 {string} string "Пользователь не найден"
 // @Failure 500 {string} string "Ошибка сервера"
 // @Router /users/{id} [put]
-
 func PutUserHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 

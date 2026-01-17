@@ -17,7 +17,6 @@ import (
 // @Failure 400 {string} string "Неверный JSON"
 // @Failure 500 {string} string "Ошибка сервера"
 // @Router /users [post]
-
 func PostUserHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 

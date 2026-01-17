@@ -25,7 +25,6 @@ import (
 // @Failure 404 {string} string "Задача не найдена"
 // @Failure 500 {string} string "Ошибка сервера"
 // @Router /tasks/{id} [put]
-
 func PutTaskHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 

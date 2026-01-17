@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart To-Do</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+    body {
+      background-color: #f5f7fa;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .form-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .form-group input,
+    .form-group textarea {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 100%;
+    }
+    .form-group textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .task {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .task h3 {
+      margin-bottom: 8px;
+      color: #222;
+    }
+    .task p {
+      color: #555;
+      margin-bottom: 10px;
+    }
+    .task small {
+      color: #888;
+      display: block;
+      margin-top: 8px;
+    }
+    .task-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+    }
+    .edit-btn {
+      background-color: #2196F3;
+    }
+    .edit-btn:hover {
+      background-color: #0b7dda;
+    }
+    .save-btn {
+      background-color: #FF9800;
+    }
+    .save-btn:hover {
+      background-color: #e68a00;
+    }
+    .cancel-btn {
+      background-color: #9E9E9E;
+    }
+    .cancel-btn:hover {
+      background-color: #757575;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Smart To-Do List</h1>
+
+    <!-- Форма добавления новой задачи -->
+    <div class="form-group">
+      <input type="text" id="new-title" placeholder="Заголовок задачи" />
+      <textarea id="new-description" placeholder="Описание (опционально)"></textarea>
+      <button id="add-task">Добавить</button>
+    </div>
+
+    <!-- Список задач -->
+    <div id="tasks-list"></div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:9090/tasks';
+
+    // DOM элементы
+    const tasksList = document.getElementById('tasks-list');
+    const newTitleInput = document.getElementById('new-title');
+    const newDescInput = document.getElementById('new-description');
+    const addTaskBtn = document.getElementById('add-task');
+
+    // Загрузка задач при старте
+    document.addEventListener('DOMContentLoaded', fetchTasks);
+
+    // Добавление новой задачи
+    addTaskBtn.addEventListener('click', async () => {
+      const title = newTitleInput.value.trim();
+      if (!title) {
+        alert('Заголовок не может быть пустым');
+        return;
+      }
+      const task = {
+        title,
+        description: newDescInput.value.trim()
+      };
+      try {
+        const res = await fetch(API_BASE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(task)
+        });
+        if (res.ok) {
+          newTitleInput.value = '';
+          newDescInput.value = '';
+          fetchTasks(); // обновляем список
+        } else {
+          const err = await res.text();
+          alert('Ошибка при создании задачи: ' + err);
+        }
+      } catch (e) {
+        alert('Не удалось подключиться к серверу');
+        console.error(e);
+      }
+    });
+
+    // Получение списка задач
+    async function fetchTasks() {
+      try {
+        const res = await fetch(API_BASE);
+        if (!res.ok) throw new Error('Ошибка загрузки задач');
+        const tasks = await res.json();
+        renderTasks(tasks);
+      } catch (e) {
+        tasksList.innerHTML = `<p style="color:red;">Ошибка: ${e.message}</p>`;
+      }
+    }
+
+    // Отображение задач
+    function renderTasks(tasks) {
+      tasksList.innerHTML = '';
+      tasks.forEach(task => {
+        const taskEl = createTaskElement(task);
+        tasksList.appendChild(taskEl);
+      });
+    }
+
+    // Создание элемента задачи
+    function createTaskElement(task) {
+      const div = document.createElement('div');
+      div.className = 'task';
+      div.dataset.id = task.id;
+
+      const titleEl = document.createElement('h3');
+      titleEl.textContent = task.title;
+
+      const descEl = document.createElement('p');
+      descEl.textContent = task.description || '—';
+
+      const datesEl = document.createElement('small');
+      datesEl.textContent = `Создано: ${formatDate(task.created_at)} | Обновлено: ${formatDate(task.updated_at)}`;
+
+      const actionsDiv = document.createElement('div');
+      actionsDiv.className = 'task-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'edit-btn';
+      editBtn.textContent = 'Редактировать';
+      editBtn.onclick = () => toggleEditMode(div, task);
+
+      actionsDiv.appendChild(editBtn);
+
+      div.appendChild(titleEl);
+      div.appendChild(descEl);
+      div.appendChild(datesEl);
+      div.appendChild(actionsDiv);
+
+      return div;
+    }
+
+    // Переключение в режим редактирования
+    function toggleEditMode(taskEl, task) {
+      const isEditing = taskEl.classList.contains('editing');
+      if (isEditing) return; // уже в процессе
+
+      taskEl.classList.add('editing');
+
+      // Сохраняем оригинальные элементы
+      const titleEl = taskEl.querySelector('h3');
+      const descEl = taskEl.querySelector('p');
+      const actionsEl = taskEl.querySelector('.task-actions');
+
+      // Создаём поля ввода
+      const titleInput = document.createElement('input');
+      titleInput.type = 'text';
+      titleInput.value = task.title;
+      titleInput.placeholder = 'Заголовок';
+
+      const descInput = document.createElement('textarea');
+      descInput.value = task.description || '';
+      descInput.placeholder = 'Описание';
+
+      // Кнопки сохранения и отмены
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'save-btn';
+      saveBtn.textContent = 'Сохранить';
+      saveBtn.onclick = async () => {
+        const updatedTask = {
+          title: titleInput.value.trim(),
+          description: descInput.value.trim()
+        };
+        if (!updatedTask.title) {
+          alert('Заголовок не может быть пустым');
+          return;
+        }
+        try {
+          const res = await fetch(`${API_BASE}/${task.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedTask)
+          });
+          if (res.ok) {
+            taskEl.replaceWith(createTaskElement(await res.json()));
+          } else {
+            const err = await res.text();
+            alert('Ошибка обновления: ' + err);
+          }
+        } catch (e) {
+          alert('Не удалось обновить задачу');
+          console.error(e);
+        }
+      };
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'cancel-btn';
+      cancelBtn.textContent = 'Отмена';
+      cancelBtn.onclick = () => {
+        taskEl.replaceWith(createTaskElement(task));
+      };
+
+      // Заменяем контент на форму редактирования
+      taskEl.innerHTML = '';
+      taskEl.appendChild(titleInput);
+      taskEl.appendChild(descInput);
+      taskEl.appendChild(document.createElement('br'));
+      taskEl.appendChild(saveBtn);
+      taskEl.appendChild(cancelBtn);
+    }
+
+    // Форматирование даты
+    function formatDate(dateStr) {
+      if (!dateStr) return '—';
+      const date = new Date(dateStr);
+      return date.toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  </script>
+</body>
+</html>

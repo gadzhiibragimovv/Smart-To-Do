@@ -14,7 +14,6 @@ import (
 // @Success 200 {array} Task
 // @Failure 500 {string} string "Ошибка сервера"
 // @Router /tasks [get]
-
 func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	tasks := []Task{}
 
