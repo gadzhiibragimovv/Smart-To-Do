@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	_ "smart-todo/docs"
+	_ "smart-todo/docs" //Без этого сваггер не работает
 	"smart-todo/handlers"
 
 	"github.com/gorilla/mux"
