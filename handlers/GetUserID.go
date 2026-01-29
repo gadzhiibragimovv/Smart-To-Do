@@ -1,45 +1,42 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
-
-	"github.com/gorilla/mux"
+	"smart-todo/middleware"
 )
 
-// GetUserById возвращает пользователя по ID
-// @Summary Получить пользователя
-// @Description Возвращает пользователя по его идентификатору
+// GetUserById возвращает текущего пользователя
+// @Summary Получить текущего пользователя
+// @Description Возвращает профиль авторизованного пользователя
 // @Tags users
+// @Security BearerAuth
 // @Produce json
-// @Param id path int true "ID пользователя"
 // @Success 200 {object} User
 // @Failure 400 {string} string "Неверный ID"
 // @Failure 404 {string} string "Пользователь не найдена"
-// @Failure 500 {string} string "Ошибка сервера"
-// @Router /users/{id} [get]
+// @Router /users/me [get]
 func GetUserById(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
 
-	if idStr == "" {
-		http.Error(w, "error missing in path", http.StatusBadRequest)
-		return
-	}
+	//Получаем context текущего запроса
+	// В нём хранится служебная информация (userID, таймауты, отмена запроса)
+	ctx := r.Context()
 
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "error invalid id", http.StatusBadRequest)
+	// Достаём userID из context
+	// Этот userID туда положил AuthMiddleware после проверки JWT
+	userID, ok := middleware.GetUserID(ctx)
+	if !ok {
+		// Если userID нет — значит пользователь не авторизован
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	var user User
-	err = db.QueryRow(
-		context.Background(),
+
+	err := db.QueryRow(
+		ctx,
 		"SELECT id, name, email FROM users WHERE id = $1",
-		id,
+		userID,
 	).Scan(&user.Id, &user.Name, &user.Email)
 
 	if err != nil {

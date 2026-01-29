@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
+	"smart-todo/middleware"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -11,23 +11,35 @@ import (
 
 // GetTaskById возвращает список задач по ID
 // @Summary Получить список задач
-// @Description Возвращает задачу по её идентификатору
+// @Description Возвращает задачу текущего пользователя по ID
+// @Security BearerAuth
 // @Tags tasks
 // @Produce json
 // @Param id path int true "ID задачи"
 // @Success 200 {object} Task
 // @Failure 400 {string} string "Неверный ID"
+// @Failure 401 {string} string "Unauthorized"
 // @Failure 404 {string} string "Задача не найдена"
 // @Failure 500 {string} string "Ошибка сервера"
 // @Router /tasks/{id} [get]
 func GetTaskById(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
 
-	if idStr == "" {
-		http.Error(w, "error missing id in path", http.StatusBadRequest)
+	//Получаем context текущего запроса
+	// В нём хранится служебная информация (userID, таймауты, отмена запроса)
+	ctx := r.Context()
+
+	// Достаём userID из context
+	// Этот userID туда положил AuthMiddleware после проверки JWT
+	userID, ok := middleware.GetUserID(ctx)
+	if !ok {
+		// Если userID нет — значит пользователь не авторизован
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+
+	// ID задачи из URL
+	vars := mux.Vars(r)
+	idStr := vars["id"]
 
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -37,10 +49,18 @@ func GetTaskById(w http.ResponseWriter, r *http.Request) {
 
 	var task Task
 	err = db.QueryRow(
-		context.Background(),
-		"SELECT id, title, description, created_at, updated_at FROM tasks WHERE id = $1",
+		ctx,
+		"SELECT id, title, description, created_at, updated_at, user_id FROM tasks WHERE id = $1 and user_id = $2",
 		id,
-	).Scan(&task.ID, &task.Title, &task.Description, &task.CreatedAT, &task.UpdatedAT)
+		userID,
+	).Scan(
+		&task.ID,
+		&task.Title,
+		&task.Description,
+		&task.CreatedAT,
+		&task.UpdatedAT,
+		&task.UserID,
+	)
 
 	if err != nil {
 		http.Error(w, "Task not found", http.StatusNotFound)

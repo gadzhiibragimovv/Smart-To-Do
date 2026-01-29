@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 )
@@ -20,6 +19,12 @@ import (
 func PostUserHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
+	//Получаем context текущего запроса
+	// В нём хранится служебная информация (userID, таймауты, отмена запроса)
+	ctx := r.Context()
+
+	//Тут не нужен JWT middleware, так как пользователь еще не авторизован
+
 	var user User
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
@@ -28,7 +33,7 @@ func PostUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = db.QueryRow(
-		context.Background(),
+		ctx,
 		"INSERT INTO users (name, email) VALUES ($1,$2) RETURNING id",
 		user.Name, user.Email,
 	).Scan(&user.Id)

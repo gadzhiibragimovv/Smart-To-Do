@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"smart-todo/middleware"
 	"strconv"
 	"time"
 
@@ -14,19 +14,34 @@ import (
 
 // PutTaskHandler обновляет задачу
 // @Summary Обновить задачу
-// @Description Обновляет задачу по идентификатору
+// @Description Обновляет задачу текущего пользователя по идентификатору
 // @Tags tasks
+// @Security BearerAuth
 // @Accept json
 // @Produce json
 // @Param id path int true "ID задачи"
 // @Param task body Task true "Данные задачи"
 // @Success 200 {object} Task
-// @Failure 400 {string} string "Неверный JSON"
+// @Failure 400 {string} string "Неверные данные запроса"
+// @Failure 401 {string} string "Unauthorized"
 // @Failure 404 {string} string "Задача не найдена"
 // @Failure 500 {string} string "Ошибка сервера"
 // @Router /tasks/{id} [put]
 func PutTaskHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+
+	//Получаем context текущего запроса
+	// В нём хранится служебная информация (userID, таймауты, отмена запроса)
+	ctx := r.Context()
+
+	// Достаём userID из context (его положил AuthMiddleware)
+	// Этот userID туда положил AuthMiddleware после проверки JWT
+	userID, ok := middleware.GetUserID(ctx)
+	if !ok {
+		// Если userID нет — значит пользователь не авторизован
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	varsUpdate := mux.Vars(r)
 	idStrUpdate := varsUpdate["id"]
@@ -48,10 +63,21 @@ func PutTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	var updatedTask Task
 	err = db.QueryRow(
-		context.Background(),
-		"UPDATE tasks SET title = $1, description = $2, updated_at = $3 WHERE id = $4 RETURNING id, title, description, created_at, updated_at",
-		task.Title, task.Description, now, id,
-	).Scan(&updatedTask.ID, &updatedTask.Title, &updatedTask.Description, &updatedTask.CreatedAT, &updatedTask.UpdatedAT)
+		ctx,
+		"UPDATE tasks SET title = $1, description = $2, updated_at = $3 WHERE id = $4 and user_id = $5 RETURNING id, title, description, created_at, updated_at, user_id",
+		task.Title,
+		task.Description,
+		now,
+		id,
+		userID,
+	).Scan(
+		&updatedTask.ID,
+		&updatedTask.Title,
+		&updatedTask.Description,
+		&updatedTask.CreatedAT,
+		&updatedTask.UpdatedAT,
+		&updatedTask.UserID,
+	)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
