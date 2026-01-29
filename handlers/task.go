@@ -10,6 +10,7 @@ type Task struct {
 	ID          int        `json:"id"`          //ID - Уникальный индефикатор
 	Title       string     `json:"title"`       //Title - Заголовок задачи
 	Description string     `json:"description"` //Description - Краткое описание задачи
+	UserID      int        `json:"user_id"`     //UserID - Пользователь
 	CreatedAT   time.Time  `json:"created_at"`  //CreatedAT - Дата и время создания задачи
 	UpdatedAT   *time.Time `json:"updated_at"`  //UpdatedAT - Дата и время последнего обновления задачи
 }

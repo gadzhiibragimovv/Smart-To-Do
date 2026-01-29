@@ -1,40 +1,46 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
-
-	"github.com/gorilla/mux"
+	"smart-todo/middleware"
 )
 
 // DeleteUserHandler удаляет задачу по ID
 // @Summary Удалить задачу
 // @Description Удаляет задачу по её идентификатору
 // @Tags users
-// @Produce json
-// @Param id path int true "ID задачи"
+// @Security BearerAuth
 // @Success 200 {integer} int "ID удалённой задачи"
-// @Failure 400 {string} string "Неверный ID"
+// @Failure 401 {string} string "Unauthorized"
 // @Failure 500 {string} string "Ошибка сервера"
-// @Router /users/{id} [delete]
+// @Router /users/me [delete]
 func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
-	varsDelete := mux.Vars(r)
-	idStrDelete := varsDelete["id"]
 
-	id, err := strconv.Atoi(idStrDelete)
-	if err != nil {
-		http.Error(w, "error invalid id", http.StatusBadRequest)
+	//Получаем context текущего запроса
+	// В нём хранится служебная информация (userID, таймауты, отмена запроса)
+	ctx := r.Context()
+
+	// Достаём userID из context
+	// Этот userID туда положил AuthMiddleware после проверки JWT
+	userID, ok := middleware.GetUserID(ctx)
+	if !ok {
+		// Если userID нет в context — значит пользователь не авторизован
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	_, err = db.Exec(context.Background(), "DELETE FROM users WHERE id = $1", id)
+	_, err := db.Exec(
+		ctx,
+		"DELETE FROM users WHERE id = $1",
+		userID,
+	)
+
 	if err != nil {
-		http.Error(w, "Failed from delete user:", http.StatusInternalServerError)
+		http.Error(w, "Failed to delete user:", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(id)
+	json.NewEncoder(w).Encode(userID)
 }

@@ -1,43 +1,48 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
+	"smart-todo/middleware"
 )
 
 // GetUserHandler возвращает список пользователей
-// @Summary Получить список пользователей
-// @Description Возвращает всех пользователей
+// @Summary Получить текущего пользователя
+// @Description Возвращает профиль авторизованного пользователя
 // @Tags users
+// @Security BearerAuth
 // @Produce json
-// @Success 200 {array} User
-// @Failure 500 {string} string "Ошибка сервера"
+// @Success 200 {object} User
+// @Failure 401 {string} string "Unauthorized"
 // @Router /users [get]
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
-	users := []User{}
 
-	rows, err := db.Query(context.Background(), "SELECT id, name, email FROM users")
-	if err != nil {
-		http.Error(w, "Failed to query users: "+err.Error(), http.StatusInternalServerError)
+	//Получаем context текущего запроса
+	// В нём хранится служебная информация (userID, таймауты, отмена запроса)
+	ctx := r.Context()
+
+	// Достаём userID из context
+	// Этот userID туда положил AuthMiddleware после проверки JWT
+	userID, ok := middleware.GetUserID(ctx)
+	if !ok {
+		// Если userID нет — значит пользователь не авторизован
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var user User
-		if err := rows.Scan(&user.Id, &user.Name, &user.Email); err != nil {
-			http.Error(w, "Error scanning user: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		users = append(users, user)
-	}
+	var user User
 
-	if err = rows.Err(); err != nil {
-		http.Error(w, "Error reading rows: "+err.Error(), http.StatusInternalServerError)
+	err := db.QueryRow(
+		ctx,
+		`SELECT id, name, email FROM users WHERE id = $1`,
+		userID,
+	).Scan(&user.Id, &user.Name, &user.Email)
+
+	if err != nil {
+		http.Error(w, "User not found", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
+	json.NewEncoder(w).Encode(user)
 }
