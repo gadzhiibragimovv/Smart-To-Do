@@ -35,6 +35,7 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//Для удаления задачи пользователем
 	varsDelete := mux.Vars(r)
 	idStrDelete := varsDelete["id"]
 
@@ -44,7 +45,7 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec(
+	result, err := db.Exec(
 		ctx,
 		"DELETE FROM tasks WHERE id = $1 and user_id = $2",
 		id,
@@ -53,6 +54,14 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, "Failed from delete tasks:"+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// ПРОВЕРКА: была ли реально удалена запись
+	// RowsAffected() возвращает количество измененных строк
+	// Если 0 - значит задача не найдена или принадлежит другому пользователю
+	if result.RowsAffected() == 0 {
+		http.Error(w, "Task not found or access denied", http.StatusNotFound)
 		return
 	}
 

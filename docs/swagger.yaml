@@ -1,5 +1,39 @@
 basePath: /
 definitions:
+  handlers.LoginRequest:
+    properties:
+      email:
+        description: Email пользователя
+        type: string
+      password:
+        description: Пароль (не хешированный)
+        type: string
+    type: object
+  handlers.LoginResponse:
+    properties:
+      access_token:
+        description: JWT токен для доступа (24 часа)
+        type: string
+      refresh_token:
+        description: JWT токен для обновления (7 дней)
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/handlers.User'
+        description: Информация о пользователе из файла user.go
+    type: object
+  handlers.RefreshRequest:
+    properties:
+      refresh_token:
+        description: Refresh токен
+        type: string
+    type: object
+  handlers.RefreshResponse:
+    properties:
+      accessToken:
+        description: Новый JWT токен
+        type: string
+    type: object
   handlers.Task:
     properties:
       created_at:
@@ -17,6 +51,9 @@ definitions:
       updated_at:
         description: UpdatedAT - Дата и время последнего обновления задачи
         type: string
+      user_id:
+        description: UserID - Пользователь
+        type: integer
     type: object
   handlers.User:
     properties:
@@ -34,9 +71,111 @@ info:
   title: Smart To-Do API
   version: "1.0"
 paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Авторизация по email и паролю
+      parameters:
+      - description: Email и пароль
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.LoginResponse'
+        "400":
+          description: Неверный JSON
+          schema:
+            type: string
+        "401":
+          description: Неверные учетные данные
+          schema:
+            type: string
+        "500":
+          description: Ошибка сервера
+          schema:
+            type: string
+      summary: Войти в систему
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Получить новый access token используя refresh token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RefreshResponse'
+        "400":
+          description: Неверный JSON
+          schema:
+            type: string
+        "401":
+          description: Неверный refresh token
+          schema:
+            type: string
+        "500":
+          description: Ошибка сервера
+          schema:
+            type: string
+      summary: Обновить токен
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Создает нового пользователя с хешированным паролем
+      parameters:
+      - description: Данные пользователя
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.User'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Пользователь успешно создан
+          schema:
+            $ref: '#/definitions/handlers.User'
+        "400":
+          description: Неверный JSON или валидация
+          schema:
+            type: string
+        "409":
+          description: Email уже существует
+          schema:
+            type: string
+        "500":
+          description: Ошибка сервера
+          schema:
+            type: string
+      summary: Зарегистрировать пользователя
+      tags:
+      - auth
   /tasks:
     get:
-      description: Возвращает все задачи
+      description: Возвращает все задачи текущего пользователя
       produces:
       - application/json
       responses:
@@ -46,10 +185,16 @@ paths:
             items:
               $ref: '#/definitions/handlers.Task'
             type: array
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
         "500":
           description: Ошибка сервера
           schema:
             type: string
+      security:
+      - BearerAuth: []
       summary: Получить список задач
       tags:
       - tasks
@@ -75,10 +220,16 @@ paths:
           description: Неверный JSON
           schema:
             type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
         "500":
           description: Ошибка сервера
           schema:
             type: string
+      security:
+      - BearerAuth: []
       summary: Создать задачу
       tags:
       - tasks
@@ -91,8 +242,6 @@ paths:
         name: id
         required: true
         type: integer
-      produces:
-      - application/json
       responses:
         "200":
           description: ID удалённой задачи
@@ -102,15 +251,21 @@ paths:
           description: Неверный ID
           schema:
             type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
         "500":
           description: Ошибка сервера
           schema:
             type: string
+      security:
+      - BearerAuth: []
       summary: Удалить задачу
       tags:
       - tasks
     get:
-      description: Возвращает задачу по её идентификатору
+      description: Возвращает задачу текущего пользователя по ID
       parameters:
       - description: ID задачи
         in: path
@@ -128,6 +283,10 @@ paths:
           description: Неверный ID
           schema:
             type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
         "404":
           description: Задача не найдена
           schema:
@@ -136,13 +295,15 @@ paths:
           description: Ошибка сервера
           schema:
             type: string
+      security:
+      - BearerAuth: []
       summary: Получить список задач
       tags:
       - tasks
     put:
       consumes:
       - application/json
-      description: Обновляет задачу по идентификатору
+      description: Обновляет задачу текущего пользователя по идентификатору
       parameters:
       - description: ID задачи
         in: path
@@ -163,7 +324,11 @@ paths:
           schema:
             $ref: '#/definitions/handlers.Task'
         "400":
-          description: Неверный JSON
+          description: Неверные данные запроса
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
           schema:
             type: string
         "404":
@@ -174,92 +339,59 @@ paths:
           description: Ошибка сервера
           schema:
             type: string
+      security:
+      - BearerAuth: []
       summary: Обновить задачу
       tags:
       - tasks
   /users:
     get:
-      description: Возвращает всех пользователей
+      description: Возвращает профиль авторизованного пользователя
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/handlers.User'
-            type: array
-        "500":
-          description: Ошибка сервера
-          schema:
-            type: string
-      summary: Получить список пользователей
-      tags:
-      - users
-    post:
-      consumes:
-      - application/json
-      description: Создает нового пользователя
-      parameters:
-      - description: Данные пользователя
-        in: body
-        name: task
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.User'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
             $ref: '#/definitions/handlers.User'
-        "400":
-          description: Неверный JSON
+        "401":
+          description: Unauthorized
           schema:
             type: string
-        "500":
-          description: Ошибка сервера
-          schema:
-            type: string
-      summary: Создать пользователя
+      security:
+      - BearerAuth: []
+      summary: Получить текущего пользователя
       tags:
       - users
-  /users/{id}:
+  /users/me:
     delete:
-      description: Удаляет задачу по её идентификатору
-      parameters:
-      - description: ID задачи
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
+      description: Удаляет текущего пользователя и все его задачи (CASCADE)
       responses:
         "200":
-          description: ID удалённой задачи
+          description: ID удалённого пользователя
           schema:
-            type: integer
-        "400":
-          description: Неверный ID
+            additionalProperties:
+              type: integer
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: Пользователь не найден
           schema:
             type: string
         "500":
           description: Ошибка сервера
           schema:
             type: string
-      summary: Удалить задачу
+      security:
+      - BearerAuth: []
+      summary: Удалить аккаунт
       tags:
       - users
     get:
-      description: Возвращает пользователя по его идентификатору
-      parameters:
-      - description: ID пользователя
-        in: path
-        name: id
-        required: true
-        type: integer
+      description: Возвращает профиль авторизованного пользователя
       produces:
       - application/json
       responses:
@@ -275,23 +407,16 @@ paths:
           description: Пользователь не найдена
           schema:
             type: string
-        "500":
-          description: Ошибка сервера
-          schema:
-            type: string
-      summary: Получить пользователя
+      security:
+      - BearerAuth: []
+      summary: Получить текущего пользователя
       tags:
       - users
     put:
       consumes:
       - application/json
-      description: Обновляет пользователя по его идентификатору
+      description: Обновляет профиль авторизованного пользователя
       parameters:
-      - description: ID пользователя
-        in: path
-        name: id
-        required: true
-        type: integer
       - description: Данные пользователей
         in: body
         name: task
@@ -309,6 +434,10 @@ paths:
           description: Неверный JSON или ID
           schema:
             type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
         "404":
           description: Пользователь не найден
           schema:
@@ -317,7 +446,9 @@ paths:
           description: Ошибка сервера
           schema:
             type: string
-      summary: Обновить пользователя
+      security:
+      - BearerAuth: []
+      summary: Обновить текущего пользователя
       tags:
       - users
 swagger: "2.0"

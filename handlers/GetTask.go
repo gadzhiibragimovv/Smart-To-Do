@@ -31,8 +31,12 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Создаем слайс (массив) для хранения задач
 	tasks := []Task{}
 
+	// SQL ЗАПРОС: выбираем все задачи текущего пользователя
+	// WHERE user_id = $1 - фильтруем только задачи этого пользователя
+	// ORDER BY created_at DESC - сортируем по дате создания (новые сначала)
 	rows, err := db.Query(
 		ctx,
 		"SELECT id, title, description, created_at, updated_at, user_id FROM tasks WHERE user_id = $1",
@@ -43,10 +47,12 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to query tasks: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+	defer rows.Close() // ОБЯЗАТЕЛЬНО закрываем rows после использования
 
+	// Перебираем все строки результата
 	for rows.Next() {
 		var task Task
+		// Сканируем каждую строку в структуру task
 		if err := rows.Scan(
 			&task.ID,
 			&task.Title,
@@ -55,9 +61,10 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 			&task.UpdatedAT,
 			&task.UserID,
 		); err != nil {
-			http.Error(w, "Error scanning user: "+err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Error scanning task: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		// Добавляем задачу в массив
 		tasks = append(tasks, task)
 	}
 

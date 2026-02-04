@@ -1,15 +1,24 @@
 package utils
 
 import (
+	"log"
 	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte(os.Getenv("JWT_SECRET")) //Секретный ключ для подписи JWT
+// getJWTSecret получает секрет из переменной окружения
+// Вызывается каждый раз при генерации/проверке токена
+func getJWTSecret() []byte {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Fatal("JWT_SECRET environment variable is not set")
+	}
+	return []byte(secret)
+}
 
-func GenerateToken(userID int) (string, error) { //Принимает ID пользователя и итоге возвращает готовый JWT
+func GenerateAccessToken(userID int) (string, error) { //Принимает ID пользователя и итоге возвращает готовый JWT
 	claims := jwt.MapClaims{ //Утверждение внутри токена, структура токена
 		"user_id": userID,                                //ID пользователя
 		"exp":     time.Now().Add(24 * time.Hour).Unix(), //Время жизни токена, сейчас +24 часа
@@ -17,12 +26,12 @@ func GenerateToken(userID int) (string, error) { //Принимает ID пол�
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims) //Создаем токен
 
-	return token.SignedString(jwtSecret) //На выходе JWT
+	return token.SignedString(getJWTSecret()) //На выходе JWT
 }
 
 func TokenVerification(authorization string) (int, error) { //Принимаем строку, возвращаем int или ошибку
 	token, err := jwt.Parse(authorization, func(token *jwt.Token) (interface{}, error) { //Парсим jwt, берет токен проверяет токен, проверяет exp
-		return jwtSecret, nil
+		return getJWTSecret(), nil
 	})
 
 	if err != nil { //Если токен подделан, просрочен или строка кривая ошибка

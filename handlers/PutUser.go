@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"smart-todo/middleware"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -39,6 +40,7 @@ func PutUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Получаем новые данные от клиента
 	var user User
 
 	err := json.NewDecoder(r.Body).Decode(&user)
@@ -47,8 +49,22 @@ func PutUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ВАЛИДАЦИЯ: проверяем, что имя не пустое
+	if strings.TrimSpace(user.Name) == "" {
+		http.Error(w, "Name is required", http.StatusBadRequest)
+		return
+	}
+
+	// ВАЛИДАЦИЯ: проверяем, что email не пустой
+	if strings.TrimSpace(user.Email) == "" {
+		http.Error(w, "Email is required", http.StatusBadRequest)
+		return
+	}
+
 	var updatedUser User
 
+	// SQL ЗАПРОС: обновляем имя и email пользователя
+	// WHERE id = $3 - обновляем только текущего пользователя
 	err = db.QueryRow(
 		ctx,
 		"UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING id, name, email",
@@ -61,11 +77,16 @@ func PutUserHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
+		// Проверяем на дублирование email
+		if strings.Contains(err.Error(), "duplicate key") {
+			http.Error(w, "Email already exists", http.StatusConflict)
+			return
+		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Failed to fetch updated user", http.StatusInternalServerError)
+		http.Error(w, "Failed to update user", http.StatusInternalServerError)
 		return
 	}
 
