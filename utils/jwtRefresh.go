@@ -1,13 +1,22 @@
 package utils
 
 import (
+	"log"
 	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var refreshSecret = []byte(os.Getenv("JWT_REFRESH_SECRET")) //Секретный ключ для подписи JWT
+// getRefreshSecret получает секрет из переменной окружения
+// Вызывается каждый раз при генерации/проверке токена
+func getRefreshSecret() []byte {
+	secret := os.Getenv("JWT_REFRESH_SECRET")
+	if secret == "" {
+		log.Fatal("JWT_REFRESH_SECRET environment variable is not set")
+	}
+	return []byte(secret)
+}
 
 func GenerateRefreshToken(userID int) (string, error) { //Принимает ID пользователя и итоге возвращает готовый JWT
 	claims := jwt.MapClaims{ //Утверждение внутри токена, структура токена
@@ -17,12 +26,12 @@ func GenerateRefreshToken(userID int) (string, error) { //Принимает ID 
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims) //Создаем токен
 
-	return token.SignedString(refreshSecret) //На выходе JWT
+	return token.SignedString(getRefreshSecret()) //На выходе JWT
 }
 
 func ParseRefreshToken(authorization string) (int, error) { //Принимаем строку, возвращаем int или ошибку
 	token, err := jwt.Parse(authorization, func(token *jwt.Token) (interface{}, error) { //Парсим jwt, берет токен проверяет токен, проверяет exp
-		return refreshSecret, nil
+		return getRefreshSecret(), nil
 	})
 
 	if err != nil { //Если токен подделан, просрочен или строка кривая ошибка
