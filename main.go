@@ -53,6 +53,8 @@ func main() {
 	// Каждый запрос к маршрутам ниже сначала пройдёт AuthMiddleware
 	auth.Use(middleware.AuthMiddleware)
 
+	auth.HandleFunc("/auth/logout", handlers.LogoutHandler).Methods("POST")
+
 	// GET /tasks — получить все задачи текущего пользователя
 	auth.HandleFunc("/tasks", handlers.GetTaskHandler).Methods("GET")
 	// POST /tasks — создать задачу для текущего пользователя
