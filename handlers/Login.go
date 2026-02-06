@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"smart-todo/utils"
 	"strings"
+	"time"
 )
 
 // LoginHandler авторизует пользователя
@@ -56,6 +57,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Проверяем пароль
+	// CheckPassword сравнивает хеш из БД с паролем от клиента
+	// Возвращает: nil если пароль верный, error если неверный
 	if err := utils.CheckPassword(hashedPassword, req.Password); err != nil {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
@@ -71,6 +74,26 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	refreshToken, err := utils.GenerateRefreshToken(user.Id)
 	if err != nil {
 		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	// СОХРАНЯЕМ REFRESH TOKEN В БД
+	// Вычисляем дату истечения токена (через 7 дней)
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+
+	// SQL ЗАПРОС: вставляем refresh токен в таблицу refresh_tokens
+	// Сохраняем: user_id, сам токен, дату истечения
+	_, err = db.Exec(
+		ctx,
+		`INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)`,
+		user.Id,      // $1 - ID пользователя
+		refreshToken, // $2 - refresh токен
+		expiresAt,    // $3 - дата истечения (через 7 дней)
+	)
+
+	if err != nil {
+		// Если не удалось сохранить токен в БД - возвращаем ошибку
+		http.Error(w, "Failed to save refresh token", http.StatusInternalServerError)
 		return
 	}
 

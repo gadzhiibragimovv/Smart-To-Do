@@ -30,7 +30,7 @@ definitions:
     type: object
   handlers.RefreshResponse:
     properties:
-      accessToken:
+      access_token:
         description: Новый JWT токен
         type: string
     type: object
@@ -103,6 +103,32 @@ paths:
           schema:
             type: string
       summary: Войти в систему
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: |-
+        Удаляет все refresh токены пользователя из БД
+        Удаляет все refresh токены...
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Ошибка сервера
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Выйти из системы
       tags:
       - auth
   /auth/refresh:

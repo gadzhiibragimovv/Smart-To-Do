@@ -67,6 +67,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаляет все refresh токены пользователя из БД\nУдаляет все refresh токены...",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Выйти из системы",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/refresh": {
             "post": {
                 "description": "Получить новый access token используя refresh token",
@@ -657,7 +695,7 @@ const docTemplate = `{
         "handlers.RefreshResponse": {
             "type": "object",
             "properties": {
-                "accessToken": {
+                "access_token": {
                     "description": "Новый JWT токен",
                     "type": "string"
                 }
