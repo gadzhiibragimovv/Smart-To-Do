@@ -74,7 +74,10 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Удаляет все refresh токены пользователя из БД\nУдаляет все refresh токены...",
+                "description": "Удаляет конкретный refresh token из БД (выход на одном устройстве)",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -82,16 +85,47 @@ const docTemplate = `{
                     "auth"
                 ],
                 "summary": "Выйти из системы",
+                "parameters": [
+                    {
+                        "description": "Refresh token",
+                        "name": "logout",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.LogoutRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Успешный выход",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный JSON",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Token does not belong to this user",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Token not found",
                         "schema": {
                             "type": "string"
                         }
@@ -683,6 +717,15 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.LogoutRequest": {
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "description": "Refresh токен который нужно удалить",
+                    "type": "string"
+                }
+            }
+        },
         "handlers.RefreshRequest": {
             "type": "object",
             "properties": {
@@ -740,6 +783,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "password": {
                     "type": "string"
                 }
             }

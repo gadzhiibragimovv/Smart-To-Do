@@ -1,8 +1,8 @@
 package handlers
 
 type User struct {
-	Id       int    `json:"id"`
+	Id       int    `json:"id,omitempty"`
 	Name     string `json:"name"`
 	Email    string `json:"email"`
-	Password string `json:"-"`
+	Password string `json:"password,omitempty"`
 }

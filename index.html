@@ -2,297 +2,276 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Smart To-Do</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --text: #111827;
+      --muted: #6b7280;
+      --danger: #ef4444;
+      --radius: 12px;
+    }
+
     * {
       box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
     }
+
     body {
-      background-color: #f5f7fa;
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
       padding: 20px;
     }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.08);
+      animation: fadeIn .4s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     h1 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #333;
+      margin: 0 0 6px;
+      font-size: 24px;
     }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
+
+    p {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 14px;
     }
-    .form-group {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .form-group input,
-    .form-group textarea {
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+
+    input {
       width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      margin-bottom: 12px;
+      font-size: 14px;
     }
-    .form-group textarea {
-      resize: vertical;
-      min-height: 60px;
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
     }
+
     button {
-      padding: 10px 15px;
-      background-color: #4CAF50;
-      color: white;
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
       border: none;
-      border-radius: 4px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
       cursor: pointer;
+      transition: background .2s ease;
     }
+
     button:hover {
-      background-color: #45a049;
+      background: var(--primary-hover);
     }
+
+    .tasks {
+      margin-top: 20px;
+    }
+
     .task {
-      background: white;
-      padding: 15px;
-      margin-bottom: 10px;
-      border-radius: 6px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      position: relative;
-    }
-    .task h3 {
-      margin-bottom: 8px;
-      color: #222;
-    }
-    .task p {
-      color: #555;
-      margin-bottom: 10px;
-    }
-    .task small {
-      color: #888;
-      display: block;
-      margin-top: 8px;
-    }
-    .task-actions {
-      margin-top: 10px;
       display: flex;
-      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 10px;
+      margin-bottom: 10px;
     }
-    .edit-btn {
-      background-color: #2196F3;
+
+    .task span {
+      font-size: 14px;
     }
-    .edit-btn:hover {
-      background-color: #0b7dda;
+
+    .task button {
+      width: auto;
+      background: transparent;
+      color: var(--danger);
+      font-size: 16px;
+      padding: 0;
     }
-    .save-btn {
-      background-color: #FF9800;
+
+    .logout {
+      margin-top: 16px;
+      background: #e5e7eb;
+      color: #111;
     }
-    .save-btn:hover {
-      background-color: #e68a00;
+
+    .logout:hover {
+      background: #d1d5db;
     }
-    .cancel-btn {
-      background-color: #9E9E9E;
-    }
-    .cancel-btn:hover {
-      background-color: #757575;
-    }
+
     .hidden {
       display: none;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Smart To-Do List</h1>
 
-    <!-- Форма добавления новой задачи -->
-    <div class="form-group">
-      <input type="text" id="new-title" placeholder="Заголовок задачи" />
-      <textarea id="new-description" placeholder="Описание (опционально)"></textarea>
-      <button id="add-task">Добавить</button>
-    </div>
+<div class="container">
 
-    <!-- Список задач -->
-    <div id="tasks-list"></div>
+  <!-- AUTH -->
+  <div class="card" id="auth">
+    <h1>Smart To-Do</h1>
+    <p>Войдите, чтобы управлять задачами</p>
+
+    <input id="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Пароль" />
+
+    <button onclick="login()">Войти</button>
   </div>
 
-  <script>
-    const API_BASE = 'http://localhost:9090/tasks';
+  <!-- TASKS -->
+  <div class="card hidden" id="app">
+    <h1>Мои задачи</h1>
+    <p>Что нужно сделать сегодня?</p>
 
-    // DOM элементы
-    const tasksList = document.getElementById('tasks-list');
-    const newTitleInput = document.getElementById('new-title');
-    const newDescInput = document.getElementById('new-description');
-    const addTaskBtn = document.getElementById('add-task');
+    <input id="title" placeholder="Название задачи" />
+    <input id="description" placeholder="Описание (необязательно)" />
 
-    // Загрузка задач при старте
-    document.addEventListener('DOMContentLoaded', fetchTasks);
+    <button onclick="createTask()">Добавить задачу</button>
 
-    // Добавление новой задачи
-    addTaskBtn.addEventListener('click', async () => {
-      const title = newTitleInput.value.trim();
-      if (!title) {
-        alert('Заголовок не может быть пустым');
-        return;
-      }
-      const task = {
-        title,
-        description: newDescInput.value.trim()
-      };
-      try {
-        const res = await fetch(API_BASE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(task)
-        });
-        if (res.ok) {
-          newTitleInput.value = '';
-          newDescInput.value = '';
-          fetchTasks(); // обновляем список
-        } else {
-          const err = await res.text();
-          alert('Ошибка при создании задачи: ' + err);
-        }
-      } catch (e) {
-        alert('Не удалось подключиться к серверу');
-        console.error(e);
-      }
-    });
+    <div class="tasks" id="taskList"></div>
 
-    // Получение списка задач
-    async function fetchTasks() {
-      try {
-        const res = await fetch(API_BASE);
-        if (!res.ok) throw new Error('Ошибка загрузки задач');
-        const tasks = await res.json();
-        renderTasks(tasks);
-      } catch (e) {
-        tasksList.innerHTML = `<p style="color:red;">Ошибка: ${e.message}</p>`;
-      }
+    <button class="logout" onclick="logout()">Выйти</button>
+  </div>
+
+</div>
+
+<script>
+const API = "http://localhost:9090";
+
+const authCard = document.getElementById("auth");
+const appCard = document.getElementById("app");
+
+function token() {
+  return localStorage.getItem("access_token");
+}
+
+if (token()) {
+  showApp();
+  loadTasks();
+}
+
+async function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const res = await fetch(`${API}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+
+  if (!res.ok) {
+    alert("Неверный email или пароль");
+    return;
+  }
+
+  const data = await res.json();
+  localStorage.setItem("access_token", data.access_token);
+
+  showApp();
+  loadTasks();
+}
+
+function showApp() {
+  authCard.classList.add("hidden");
+  appCard.classList.remove("hidden");
+}
+
+async function loadTasks() {
+  const res = await fetch(`${API}/tasks`, {
+    headers: {
+      Authorization: "Bearer " + token()
     }
+  });
 
-    // Отображение задач
-    function renderTasks(tasks) {
-      tasksList.innerHTML = '';
-      tasks.forEach(task => {
-        const taskEl = createTaskElement(task);
-        tasksList.appendChild(taskEl);
-      });
+  const tasks = await res.json();
+  const list = document.getElementById("taskList");
+  list.innerHTML = "";
+
+  tasks.forEach(t => {
+    const div = document.createElement("div");
+    div.className = "task";
+    div.innerHTML = `
+      <span>${t.title}</span>
+      <button onclick="deleteTask(${t.id})">✕</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+async function createTask() {
+  const title = document.getElementById("title").value;
+  const description = document.getElementById("description").value;
+
+  if (!title) return;
+
+  await fetch(`${API}/tasks`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + token()
+    },
+    body: JSON.stringify({ title, description })
+  });
+
+  document.getElementById("title").value = "";
+  document.getElementById("description").value = "";
+
+  loadTasks();
+}
+
+async function deleteTask(id) {
+  await fetch(`${API}/tasks/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: "Bearer " + token()
     }
+  });
 
-    // Создание элемента задачи
-    function createTaskElement(task) {
-      const div = document.createElement('div');
-      div.className = 'task';
-      div.dataset.id = task.id;
+  loadTasks();
+}
 
-      const titleEl = document.createElement('h3');
-      titleEl.textContent = task.title;
+function logout() {
+  localStorage.removeItem("access_token");
+  location.reload();
+}
+</script>
 
-      const descEl = document.createElement('p');
-      descEl.textContent = task.description || '—';
-
-      const datesEl = document.createElement('small');
-      datesEl.textContent = `Создано: ${formatDate(task.created_at)} | Обновлено: ${formatDate(task.updated_at)}`;
-
-      const actionsDiv = document.createElement('div');
-      actionsDiv.className = 'task-actions';
-
-      const editBtn = document.createElement('button');
-      editBtn.className = 'edit-btn';
-      editBtn.textContent = 'Редактировать';
-      editBtn.onclick = () => toggleEditMode(div, task);
-
-      actionsDiv.appendChild(editBtn);
-
-      div.appendChild(titleEl);
-      div.appendChild(descEl);
-      div.appendChild(datesEl);
-      div.appendChild(actionsDiv);
-
-      return div;
-    }
-
-    // Переключение в режим редактирования
-    function toggleEditMode(taskEl, task) {
-      const isEditing = taskEl.classList.contains('editing');
-      if (isEditing) return; // уже в процессе
-
-      taskEl.classList.add('editing');
-
-      // Сохраняем оригинальные элементы
-      const titleEl = taskEl.querySelector('h3');
-      const descEl = taskEl.querySelector('p');
-      const actionsEl = taskEl.querySelector('.task-actions');
-
-      // Создаём поля ввода
-      const titleInput = document.createElement('input');
-      titleInput.type = 'text';
-      titleInput.value = task.title;
-      titleInput.placeholder = 'Заголовок';
-
-      const descInput = document.createElement('textarea');
-      descInput.value = task.description || '';
-      descInput.placeholder = 'Описание';
-
-      // Кнопки сохранения и отмены
-      const saveBtn = document.createElement('button');
-      saveBtn.className = 'save-btn';
-      saveBtn.textContent = 'Сохранить';
-      saveBtn.onclick = async () => {
-        const updatedTask = {
-          title: titleInput.value.trim(),
-          description: descInput.value.trim()
-        };
-        if (!updatedTask.title) {
-          alert('Заголовок не может быть пустым');
-          return;
-        }
-        try {
-          const res = await fetch(`${API_BASE}/${task.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedTask)
-          });
-          if (res.ok) {
-            taskEl.replaceWith(createTaskElement(await res.json()));
-          } else {
-            const err = await res.text();
-            alert('Ошибка обновления: ' + err);
-          }
-        } catch (e) {
-          alert('Не удалось обновить задачу');
-          console.error(e);
-        }
-      };
-
-      const cancelBtn = document.createElement('button');
-      cancelBtn.className = 'cancel-btn';
-      cancelBtn.textContent = 'Отмена';
-      cancelBtn.onclick = () => {
-        taskEl.replaceWith(createTaskElement(task));
-      };
-
-      // Заменяем контент на форму редактирования
-      taskEl.innerHTML = '';
-      taskEl.appendChild(titleInput);
-      taskEl.appendChild(descInput);
-      taskEl.appendChild(document.createElement('br'));
-      taskEl.appendChild(saveBtn);
-      taskEl.appendChild(cancelBtn);
-    }
-
-    // Форматирование даты
-    function formatDate(dateStr) {
-      if (!dateStr) return '—';
-      const date = new Date(dateStr);
-      return date.toLocaleString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-  </script>
 </body>
 </html>

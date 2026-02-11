@@ -24,3 +24,9 @@ type RefreshRequest struct {
 type RefreshResponse struct {
 	AccessToken string `json:"access_token"` //Новый JWT токен
 }
+
+// LogoutRequest - запрос на выход из системы
+// Используется для удаления конкретного refresh token из БД
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token"` // Refresh токен который нужно удалить
+}

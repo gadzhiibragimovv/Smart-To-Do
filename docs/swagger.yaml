@@ -22,6 +22,12 @@ definitions:
         - $ref: '#/definitions/handlers.User'
         description: Информация о пользователе из файла user.go
     type: object
+  handlers.LogoutRequest:
+    properties:
+      refresh_token:
+        description: Refresh токен который нужно удалить
+        type: string
+    type: object
   handlers.RefreshRequest:
     properties:
       refresh_token:
@@ -62,6 +68,8 @@ definitions:
       id:
         type: integer
       name:
+        type: string
+      password:
         type: string
     type: object
 host: localhost:9090
@@ -107,19 +115,39 @@ paths:
       - auth
   /auth/logout:
     post:
-      description: |-
-        Удаляет все refresh токены пользователя из БД
-        Удаляет все refresh токены...
+      consumes:
+      - application/json
+      description: Удаляет конкретный refresh token из БД (выход на одном устройстве)
+      parameters:
+      - description: Refresh token
+        in: body
+        name: logout
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LogoutRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Успешный выход
           schema:
-            additionalProperties: true
+            additionalProperties:
+              type: string
             type: object
+        "400":
+          description: Неверный JSON
+          schema:
+            type: string
         "401":
           description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Token does not belong to this user
+          schema:
+            type: string
+        "404":
+          description: Token not found
           schema:
             type: string
         "500":

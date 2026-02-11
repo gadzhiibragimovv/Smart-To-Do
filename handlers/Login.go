@@ -35,10 +35,20 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Password) == "" {
-		http.Error(w, "Email and password are required", http.StatusBadRequest)
+	// Проверка email формата
+	if !utils.IsValidEmail(req.Email) {
+		http.Error(w, "Invalid email format", http.StatusBadRequest)
 		return
 	}
+
+	// Проверка что пароль не пустой
+	if strings.TrimSpace(req.Password) == "" {
+		http.Error(w, "Password is required", http.StatusBadRequest)
+		return
+	}
+
+	// Убираем пробелы
+	req.Email = strings.TrimSpace(req.Email)
 
 	// Ищем пользователя в БД по email
 	var user User

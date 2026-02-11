@@ -37,16 +37,37 @@ func PostUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ВАЛИДАЦИЯ: проверяем, что email не пустой
-	// TrimSpace убирает пробелы в начале и конце строки
-	if strings.TrimSpace(user.Email) == "" {
-		http.Error(w, "Email is required", http.StatusBadRequest)
+	// Проверка email
+	if !utils.IsValidEmail(user.Email) {
+		http.Error(w, "Invalid email format", http.StatusBadRequest)
 		return
 	}
 
-	// ВАЛИДАЦИЯ: проверяем, что имя не пустое
-	if strings.TrimSpace(user.Name) == "" {
-		http.Error(w, "Name is required", http.StatusBadRequest)
+	// Проверка пароля
+	if !utils.IsValidPassword(user.Password) {
+		http.Error(w, "Password must be at least 6 characters", http.StatusBadRequest)
+		return
+	}
+
+	// Проверка имени(! если не валдиное)
+	if !utils.IsValidName(user.Name) {
+		http.Error(w, "Name must be between 2 and 50 characters", http.StatusBadRequest)
+		return
+	}
+
+	// Убираем пробелы
+	user.Email = strings.TrimSpace(user.Email)
+	user.Name = strings.TrimSpace(user.Name)
+
+	// Проверка дубликата email
+	var existingID int
+	err = db.QueryRow(ctx,
+		`SELECT id FROM users WHERE email = $1`,
+		user.Email,
+	).Scan(&existingID)
+
+	if err == nil {
+		http.Error(w, "Email already registered", http.StatusConflict)
 		return
 	}
 
